@@ -1,17 +1,104 @@
-import telebot
+import random
 from logger import Logger
 from settings import config
 from data import *
+from telebot import types
+from telebot.handler_backends import State, StatesGroup
+import telebot
 
-log = Logger(config.BOT_NAME[1:])  # Without '@'
+
+log = Logger(config.BOT_NAME[1:])
 bot = telebot.TeleBot(config.BOT_TOKEN, parse_mode="markdown")
 log.info(f"Bot <{config.BOT_NAME}> started")
+
+known_users = []
+userStep = {}
+buttons = []
+
+
+class MyStates(StatesGroup):
+    target_word: State = State()
+    translate_word = State()
+    another_words = State()
+
+
+class Command:
+    ADD_WORD = 'Добавить слово +'
+    DELETE_WORD = 'Удалить слово <-'
+    NEXT = 'Дальше ->>'
 
 
 @bot.message_handler(commands=["start"])
 def answer_start(message):
     bot.send_photo(message.chat.id, START_IMAGE_URL, text_commands["start"])
     log.info(f"START user_name=<{message.from_user.username}>, name=<{message.from_user.first_name}>")
+
+
+# noinspection PyTypeChecker
+@bot.message_handler(commands=['cards', 'start'])
+def create_cards(message):
+    cid = message.chat.id
+    if cid not in known_users:
+        known_users.append(cid)
+        userStep[cid] = 0
+        bot.send_message(cid, "Hello, stranger, let study English...")
+    markup = types.ReplyKeyboardMarkup(row_width=2)
+
+    target_word = 'Peace'
+    translate = 'Мир'
+    target_word_btn = types.KeyboardButton(target_word)
+    buttons.append(target_word_btn)
+    others = ['Green', 'White', 'Hello', 'Car']
+    other_words_btns = [types.KeyboardButton(word) for word in others]
+    buttons.extend(other_words_btns)
+    random.shuffle(buttons)
+    next_btn = types.KeyboardButton(Command.NEXT)
+    add_word_btn = types.KeyboardButton(Command.ADD_WORD)
+    delete_word_btn = types.KeyboardButton(Command.DELETE_WORD)
+    buttons.extend([next_btn, add_word_btn, delete_word_btn])
+    markup.add(*buttons)
+
+    greeting = f"Выбери перевод слова:\n🇷🇺 {translate}"
+    bot.send_message(message.chat.id, greeting, reply_markup=markup)
+    bot.set_state(message.from_user.id, MyStates.target_word, message.chat.id)
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        data['target_word'] = target_word
+        data['translate_word'] = translate
+        data['other_words'] = others
+
+
+@bot.message_handler(func=lambda message: message.text == Command.NEXT)
+def next_cards(message):
+    create_cards(message)
+
+
+@bot.message_handler(func=lambda message: message.text == Command.DELETE_WORD)
+def delete_word(message):
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        print(data['target_word'])
+
+
+@bot.message_handler(func=lambda message: message.text == Command.ADD_WORD)
+def add_word(message):
+    cid = message.chat.id
+    userStep[cid] = 1
+
+
+@bot.message_handler(func=lambda message: message.text == Command.NEXT)
+def next_cards(message):
+    create_cards(message)
+
+
+@bot.message_handler(func=lambda message: message.text == Command.DELETE_WORD)
+def delete_word(message):
+    with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        print(data['target_word'])
+
+
+@bot.message_handler(func=lambda message: message.text == Command.ADD_WORD)
+def add_word(message):
+    cid = message.chat.id
+    userStep[cid] = 1
 
 
 @bot.message_handler(commands=["commands"])
