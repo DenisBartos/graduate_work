@@ -142,5 +142,6 @@ def answer_to_all_messages(message):
                  f"text=<{message.text}>")
 
 
-bot.polling(none_stop=True)
-log.warning(f"Bot <{config.BOT_NAME}> finished")
+if __name__ == "__main__":
+    bot.polling(none_stop=True)
+    log.warning(f"Bot <{config.BOT_NAME}> finished")
