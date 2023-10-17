@@ -35,7 +35,7 @@ def answer_start(message):
 
 
 # noinspection PyTypeChecker
-@bot.message_handler(commands=['cards', 'start'])
+@bot.message_handler(commands=['cards'])
 def create_cards(message):
     cid = message.chat.id
     if cid not in known_users:
